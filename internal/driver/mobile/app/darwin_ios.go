@@ -178,19 +178,20 @@ func sendTouch(cTouch, cTouchType uintptr, x, y float32) {
 			}
 		}
 		if id == -1 {
-			panic("out of touchIDs")
+			// (Inbetween's iPad build: ends were lost; start again)
+			for idx := range touchIDs {
+				touchIDs[idx] = 0
+			}
+			touchIDs[0] = cTouch
+			id = 0
 		}
 	}
 
 	t := touch.Type(cTouchType)
 	if t == touch.TypeEnd {
-		// Clear all touchIDs when touch ends. The UITouch pointers are unique
-		// at every multi-touch event. See:
-		// https://github.com/fyne-io/fyne/issues/2407
-		// https://developer.apple.com/documentation/uikit/touches_presses_and_gestures?language=objc
-		for idx := range touchIDs {
-			touchIDs[idx] = 0
-		}
+		// (Inbetween's iPad build: only this touch's ID is freed. All of them
+		// freed at any touch's end gave the touches still down new IDs.)
+		touchIDs[id] = 0
 	}
 
 	theApp.events.In() <- touch.Event{
