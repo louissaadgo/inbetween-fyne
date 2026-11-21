@@ -18,6 +18,18 @@ struct utsname sysInfo;
 
 static CGFloat keyboardHeight;
 
+// goOrientation is the app's orientation (Inbetween's iPad build: its
+// window scene's; the status bar's says nothing under the scene life
+// cycle iOS 27 requires).
+static UIInterfaceOrientation goOrientation(void) {
+	for (UIScene *s in [UIApplication sharedApplication].connectedScenes) {
+		if ([s isKindOfClass:[UIWindowScene class]]) {
+			return ((UIWindowScene *)s).interfaceOrientation;
+		}
+	}
+	return UIInterfaceOrientationPortrait;
+}
+
 @interface GoAppAppController : GLKViewController<UIContentContainer, GLKViewDelegate>
 @end
 
@@ -39,19 +51,20 @@ static CGFloat keyboardHeight;
     setDisplayMetrics((int)size.width, (int)size.height, scale);
 
 	lifecycleAlive();
-	self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-	self.controller = [[GoAppAppController alloc] initWithNibName:nil bundle:nil];
-	self.window.rootViewController = self.controller;
-	[self.window makeKeyAndVisible];
-
-    // update insets once key window is set
-	UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
-	updateConfig((int)size.width, (int)size.height, orientation);
+	// (Inbetween's iPad build: the window is made for the app's scene, by
+	// GoAppSceneDelegate: iOS 27 starts no app without the scene life cycle)
 
 	UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
 	center.delegate = (id) self;
 
 	return YES;
+}
+
+- (UISceneConfiguration *)application:(UIApplication *)application configurationForConnectingSceneSession:(UISceneSession *)session options:(UISceneConnectionOptions *)options {
+	// (Inbetween's iPad build: the app's one scene, GoAppSceneDelegate's)
+	UISceneConfiguration *c = [UISceneConfiguration configurationWithName:@"Default" sessionRole:session.role];
+	c.delegateClass = NSClassFromString(@"GoAppSceneDelegate");
+	return c;
 }
 
 - (void)applicationDidBecomeActive:(UIApplication * )application {
@@ -97,6 +110,59 @@ static CGFloat keyboardHeight;
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions options))completionHandler {
 	completionHandler(UNNotificationPresentationOptionAlert);
+}
+@end
+
+// GoAppSceneDelegate is the app's one scene (Inbetween's iPad build: iOS 27
+// starts no app without the scene life cycle): its window, made as the app
+// delegate made it; the app's life cycle from the scene's (the app
+// delegate's own isn't called under scenes); files opened in the app
+// (Files' Open In), handed to the app delegate's application:openURL:
+// options: where it has one.
+@interface GoAppSceneDelegate : UIResponder<UIWindowSceneDelegate>
+@property (strong, nonatomic) UIWindow *window;
+@end
+
+@implementation GoAppSceneDelegate
+- (void)scene:(UIScene *)scene willConnectToSession:(UISceneSession *)session options:(UISceneConnectionOptions *)connectionOptions {
+	if (![scene isKindOfClass:[UIWindowScene class]]) {
+		return;
+	}
+	UIWindowScene *ws = (UIWindowScene *)scene;
+	GoAppAppDelegate *app = (GoAppAppDelegate *)[UIApplication sharedApplication].delegate;
+	UIWindow *w = [[UIWindow alloc] initWithWindowScene:ws];
+	self.window = w;
+	app.window = w;
+	app.controller = [[GoAppAppController alloc] initWithNibName:nil bundle:nil];
+	w.rootViewController = app.controller;
+	[w makeKeyAndVisible];
+	CGSize size = [UIScreen mainScreen].nativeBounds.size;
+	updateConfig((int)size.width, (int)size.height, ws.interfaceOrientation);
+	if (connectionOptions.URLContexts.count > 0) {
+		[self scene:scene openURLContexts:connectionOptions.URLContexts];
+	}
+}
+
+- (void)scene:(UIScene *)scene openURLContexts:(NSSet<UIOpenURLContext *> *)contexts {
+	id<UIApplicationDelegate> app = [UIApplication sharedApplication].delegate;
+	if (![app respondsToSelector:@selector(application:openURL:options:)]) {
+		return;
+	}
+	for (UIOpenURLContext *c in contexts) {
+		[app application:[UIApplication sharedApplication] openURL:c.URL options:@{}];
+	}
+}
+
+- (void)sceneDidBecomeActive:(UIScene *)scene {
+	lifecycleFocused();
+}
+
+- (void)sceneWillResignActive:(UIScene *)scene {
+	lifecycleVisible();
+}
+
+- (void)sceneDidEnterBackground:(UIScene *)scene {
+	lifecycleAlive();
 }
 @end
 
@@ -151,7 +217,7 @@ static CGFloat keyboardHeight;
 	setScreen(scale);
 
 	CGSize size = [UIScreen mainScreen].nativeBounds.size;
-	UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
+	UIInterfaceOrientation orientation = goOrientation();
 	updateConfig((int)size.width, (int)size.height, orientation);
 
     self.glview.enableSetNeedsDisplay = NO;
@@ -163,7 +229,7 @@ static CGFloat keyboardHeight;
 	[coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
 		// TODO(crawshaw): come up with a plan to handle animations.
 	} completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
-		UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
+		UIInterfaceOrientation orientation = goOrientation();
 		CGSize size = [UIScreen mainScreen].nativeBounds.size;
 		updateConfig((int)size.width, (int)size.height, orientation);
 	}];
@@ -210,7 +276,7 @@ static void sendTouches(int change, NSSet* touches) {
 - (void) traitCollectionDidChange: (UITraitCollection *) previousTraitCollection {
     [super traitCollectionDidChange: previousTraitCollection];
 
-	UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
+	UIInterfaceOrientation orientation = goOrientation();
 	CGSize size = [UIScreen mainScreen].nativeBounds.size;
 	updateConfig((int)size.width, (int)size.height, orientation);
 }
@@ -220,7 +286,7 @@ static void sendTouches(int change, NSSet* touches) {
     keyboardHeight = keyboardSize.height;
 
     CGSize size = [UIScreen mainScreen].nativeBounds.size;
-	UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
+	UIInterfaceOrientation orientation = goOrientation();
 	updateConfig((int)size.width, (int)size.height, orientation);
 }
 
@@ -228,7 +294,7 @@ static void sendTouches(int change, NSSet* touches) {
     keyboardHeight = 0;
 
     CGSize size = [UIScreen mainScreen].nativeBounds.size;
-	UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
+	UIInterfaceOrientation orientation = goOrientation();
 	updateConfig((int)size.width, (int)size.height, orientation);
 }
 
