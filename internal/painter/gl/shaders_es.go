@@ -27,6 +27,9 @@ var (
 	//go:embed shaders/rectangle_es.vert
 	shaderRectangleesVert []byte
 
+	//go:embed shaders/user_es.vert
+	shaderUseresVert []byte
+
 	//go:embed shaders/round_rectangle_es.frag
 	shaderRoundrectangleesFrag []byte
 
@@ -78,10 +81,13 @@ func shaderSourceNamed(name string) ([]byte, []byte) {
 	return nil, nil
 }
 
-// rectangleVertexSource returns the standard vertex shader used to fill a vector
-// shape's bounding box. User shaders reuse it, just like the built in shapes.
-func rectangleVertexSource() []byte {
-	return shaderRectangleesVert
+// userShaderVertexSource returns the vertex shader of shader objects on this
+// build target: the rectangle's, which also tells each fragment the pixel it
+// is on (varying vec2 inbPix: gl_FragCoord's x and y, from the bottom left,
+// pixel centres at .5) at full precision. GLSL ES has gl_FragCoord medium,
+// which some GPUs (an iPad's) keep to 16 bits: whole pixels only up to 2048.
+func userShaderVertexSource() []byte {
+	return shaderUseresVert
 }
 
 // userShaderFragment returns the fragment shader source to use for the given
