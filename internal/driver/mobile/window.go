@@ -5,9 +5,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/internal/cache"
 	"fyne.io/fyne/v2/internal/driver/common"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
 type window struct {
@@ -110,17 +107,12 @@ func (w *window) Show() {
 		menuButton.Hide()
 	}
 
+	// (Inbetween's iPad build: a child window, Settings or the Render
+	// Queue, has no head of Fyne's, its title and a close button over the
+	// app's own bar: the app's sheets paint their title and Done)
+	w.canvas.setWindowHead(container.NewHBox(menuButton))
 	if w.isChild {
-		exit := widget.NewButtonWithIcon("", theme.CancelIcon(), func() {
-			w.tryClose()
-		})
-		title := widget.NewLabel(w.title)
-		title.Alignment = fyne.TextAlignCenter
-		w.canvas.setWindowHead(container.NewHBox(menuButton,
-			layout.NewSpacer(), title, layout.NewSpacer(), exit))
 		w.canvas.Resize(w.canvas.size)
-	} else {
-		w.canvas.setWindowHead(container.NewHBox(menuButton))
 	}
 	w.visible = true
 	w.initAccessibilityForWindow()
