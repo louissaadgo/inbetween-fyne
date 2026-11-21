@@ -195,7 +195,7 @@ func (d *driver) Run() {
 			})
 		})
 
-		draw := time.NewTicker(time.Second / 60)
+		draw := time.NewTicker(time.Second / 120) // (Inbetween's iPad build: ProMotion)
 		defer func() {
 			l := fyne.CurrentApp().Lifecycle().(*intapp.Lifecycle)
 
