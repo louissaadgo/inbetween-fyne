@@ -226,12 +226,35 @@ static UIInterfaceOrientation goOrientation(void) {
 }
 
 - (void)viewWillTransitionToSize:(CGSize)ptSize withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
+	// (Inbetween's iPad build: the turn without UIKit's crossfade of
+	// snapshots, an OpenGL view's black, so the screen went dark; the new
+	// size told as the view takes it, inside the turn, and the app's frame
+	// at that size drawn there and then: told before, the app drew its new
+	// layout into the view still the old shape, shown a moment before the
+	// turn; told after, the old layout turned, stretched)
+	[UIView setAnimationsEnabled:NO];
+	[super viewWillTransitionToSize:ptSize withTransitionCoordinator:coordinator];
 	[coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
-		// TODO(crawshaw): come up with a plan to handle animations.
+		[self.view layoutIfNeeded];
+		long before = paintsBegun();
+		CGSize native = [UIScreen mainScreen].nativeBounds.size;
+		updateConfig((int)native.width, (int)native.height, ptSize.width > ptSize.height ? UIInterfaceOrientationLandscapeLeft : UIInterfaceOrientationPortrait);
+		// the frame begun after it drawn (a frame begun before, at the old
+		// size, drawn on the way: only the last shows); a fifth of a second
+		// at most
+		for (int i = 0; i < 100; i++) {
+			if (needsDraw()) {
+				[self.glview display];
+			}
+			if (paintsBegun() > before && !needsDraw()) {
+				break;
+			}
+			[NSThread sleepForTimeInterval:0.002];
+		}
 	} completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
-		UIInterfaceOrientation orientation = goOrientation();
+		[UIView setAnimationsEnabled:YES];
 		CGSize size = [UIScreen mainScreen].nativeBounds.size;
-		updateConfig((int)size.width, (int)size.height, orientation);
+		updateConfig((int)size.width, (int)size.height, goOrientation());
 	}];
 }
 

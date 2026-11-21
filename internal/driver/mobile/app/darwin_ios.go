@@ -226,7 +226,19 @@ var painting atomic.Bool
 // BeginPaint records that the driver is about to queue a frame's GL calls and
 // will follow them with a Publish.
 func BeginPaint() {
+	paints.Add(1)
 	painting.Store(true)
+}
+
+// paints counts the frames begun (Inbetween's iPad build: a turn of the
+// iPad draws the first one begun at its new size before it shows).
+var paints atomic.Int64
+
+// paintsBegun is how many frames have begun.
+//
+//export paintsBegun
+func paintsBegun() C.long {
+	return C.long(paints.Load())
 }
 
 // needsDraw reports whether the UI thread has pending changes to draw.
