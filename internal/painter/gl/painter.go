@@ -88,6 +88,12 @@ func (p *painter) Free(obj fyne.CanvasObject) {
 	// deliberately not freed here: Free is also called for every object on each
 	// Refresh (see Canvas.FreeDirtyTextures), so freeing would recompile the
 	// program - and reset its animation clock - every single frame.
+	if p.ctx == nil {
+		// (Inbetween's iPad build: a window shown but not yet painted, its
+		// painter without its GL context: freeing the textures it found,
+		// another window's, crashed the app as the Render Queue opened)
+		return
+	}
 	if text, ok := obj.(*canvas.Text); ok {
 		p.freeClippedTextTexture(text)
 	}
