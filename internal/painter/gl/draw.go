@@ -439,6 +439,9 @@ func (p *painter) shaderProgram(shader *canvas.Shader) (*shaderState, bool) {
 	if state, ok := p.shaderPrograms[shader.Name]; ok {
 		return state, state.valid
 	}
+	if shareShaderPrograms { // (Inbetween: one program for every shader of this source)
+		return p.sharedShaderProgram(shader)
+	}
 
 	ref, err := p.createProgramFromSource(userShaderVertexSource(), userShaderFragment(shader))
 	if err != nil {
@@ -485,8 +488,12 @@ func (p *painter) drawShader(shader *canvas.Shader, pos fyne.Position, frame fyn
 	x1Scaled, x2Scaled, y1Scaled, y2Scaled := p.scaleRectCoords(bounds[0], bounds[2], bounds[1], bounds[3])
 	p.SetUniform4f(program, "bounds", x1Scaled, y1Scaled, x2Scaled, y2Scaled)
 
-	for name, v := range shader.Uniforms {
-		p.SetUniform1f(program, name, v)
+	if state.shared != nil {
+		p.setSharedUniforms(state, shader) // (Inbetween: as if the program were this shader's alone)
+	} else {
+		for name, v := range shader.Uniforms {
+			p.SetUniform1f(program, name, v)
+		}
 	}
 
 	p.bindShaderTextures(state, shader)

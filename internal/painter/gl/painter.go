@@ -58,7 +58,8 @@ type painter struct {
 	bezierCurveProgram      programState
 	arbitraryPolygonProgram programState
 	ellipseProgram          programState
-	shaderPrograms          map[string]*shaderState // lazily compiled programs for user shaders, keyed by Shader.Name
+	shaderPrograms          map[string]*shaderState   // lazily compiled programs for user shaders, keyed by Shader.Name
+	shaderShared            map[string]*sharedProgram // (Inbetween) the programs shaders of one source share, keyed by fragment source: shader_share.go
 	texScale                float32
 	pixScale                float32 // pre-calculate scale*texScale for each draw
 	blurSnapTex             Texture // cached texture for GPU-side blur snapshot
@@ -340,6 +341,10 @@ type shaderState struct {
 	program  programState
 	valid    bool
 	textures map[string]*shaderTexture // uploaded textures, keyed by uniform name
+	// (Inbetween) the program this shader shares with the others of its
+	// source (nil: its own), and the uniforms it has ever set: shader_share.go
+	shared *sharedProgram
+	sets   map[string]float32
 }
 
 // shaderTexture is a GPU texture uploaded for a shader, remembering the source
