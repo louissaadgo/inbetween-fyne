@@ -19,6 +19,7 @@ import (
 	"fyne.io/fyne/v2/internal/async"
 	"fyne.io/fyne/v2/internal/driver"
 	"fyne.io/fyne/v2/internal/driver/common"
+	"fyne.io/fyne/v2/internal/pace"
 	"fyne.io/fyne/v2/internal/painter"
 	intRepo "fyne.io/fyne/v2/internal/repository"
 	"fyne.io/fyne/v2/storage/repository"
@@ -40,6 +41,8 @@ type gLDriver struct {
 
 	trayStart, trayStop func()     // shut down the system tray, if used
 	systrayMenu         *fyne.Menu // cache the menu set so we know when to refresh
+
+	pace pace.Pacer // the loop's pace and the frames' times (pace.go)
 }
 
 func (d *gLDriver) init() {

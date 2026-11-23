@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/internal/app"
 	"fyne.io/fyne/v2/internal/async"
+	"fyne.io/fyne/v2/internal/build"
 	"fyne.io/fyne/v2/internal/cache"
 	"fyne.io/fyne/v2/internal/driver/common"
 	"fyne.io/fyne/v2/internal/painter"
@@ -129,7 +130,9 @@ func (d *gLDriver) runGL() {
 		f()
 	}
 
-	eventTick := time.NewTicker(time.Second / 60)
+	d.pace.SetHz(d.fastestRefresh())
+	tickEvery := d.pace.Tick(build.IsWayland)
+	eventTick := time.NewTicker(tickEvery)
 	for {
 		select {
 		case <-d.done:
@@ -187,7 +190,17 @@ func (d *gLDriver) runGL() {
 			}
 
 			d.animation.TickAnimations()
+			d.pace.Hook(time.Now())
 			d.drawSingleFrame()
+			// (a screen plugged in, or another's rate: the pace again, now and then)
+			if time.Since(d.pace.Refreshed) > 2*time.Second {
+				d.pace.Refreshed = time.Now()
+				d.pace.SetHz(d.fastestRefresh())
+				if every := d.pace.Tick(build.IsWayland); every != tickEvery {
+					tickEvery = every
+					eventTick.Reset(every)
+				}
+			}
 		}
 	}
 }
@@ -225,6 +238,7 @@ func (d *gLDriver) repaintWindow(w *window) bool {
 	if view != nil && visible {
 		w.frame.requestFrame()
 		view.SwapBuffers()
+		w.driver.pace.Swapped(time.Now())
 	}
 
 	// mark that we have walked the window and don't
