@@ -66,6 +66,10 @@ var (
 	localizer *i18n.Localizer
 	setupOnce sync.Once
 
+	// chosen is the language the app chose (SetLanguage; nil: the
+	// system's)
+	chosen []string
+
 	//go:embed translations
 	translations embed.FS
 	translated   []language.Tag
@@ -232,14 +236,40 @@ func setupLang(lang string) {
 	localizer = i18n.NewLocalizer(bundle, lang)
 }
 
+// SetLanguage makes Fyne's own words (a dialog's buttons, a text field's
+// menu, the file dialogs) those of language lang, a BCP 47 tag ("en", "fr",
+// "pt-BR"), whatever the system's languages are: an app whose own words are
+// all in one language keeps Fyne's in it too, not half in the language of
+// the computer it runs on. Translations added later follow it too. "" goes
+// back to the system's languages. A language Fyne has no translations for
+// falls back to English, as the system's do.
+//
+// Only the words: SystemLocale and a device's Locale stay the system's
+// (its region's dates and numbers).
+//
+// Inbetween's fork (not in Fyne).
+func SetLanguage(lang string) {
+	if lang == "" {
+		chosen = nil
+	} else {
+		chosen = []string{lang}
+	}
+	updateLocalizer()
+}
+
 // updateLocalizer Finds the closest translation from the user's locale list and sets it up
+// (the language the app chose instead, when it chose one: SetLanguage)
 func updateLocalizer() {
 	setupOnce.Do(initRuntime)
 
-	all, err := locale.GetLocales()
-	if err != nil {
-		fyne.LogError("Failed to load user locales", err)
-		all = []string{"en"}
+	all := chosen
+	if all == nil {
+		var err error
+		all, err = locale.GetLocales()
+		if err != nil {
+			fyne.LogError("Failed to load user locales", err)
+			all = []string{"en"}
+		}
 	}
 	setupLang(closestSupportedLocale(all).LanguageString())
 }

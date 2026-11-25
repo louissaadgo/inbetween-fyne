@@ -91,3 +91,29 @@ func TestLoadBuiltInTranslations(t *testing.T) {
 	setupLang("en")
 	assert.Equal(t, "OK", X("OK", "FAIL"))
 }
+
+// An app that chose its language keeps Fyne's words in it, whatever the
+// system's: French on a French computer until it chose English, English
+// after, translations added later too; "" back to the system's.
+func TestSetLanguage(t *testing.T) {
+	t.Setenv("LANGUAGE", "fr")
+	t.Setenv("LC_ALL", "fr_FR.UTF-8")
+	t.Setenv("LANG", "fr_FR.UTF-8")
+	defer SetLanguage("")
+
+	SetLanguage("")
+	assert.Equal(t, "Annuler", L("Cancel"), "the system's language: French")
+
+	SetLanguage("en")
+	assert.Equal(t, "Cancel", L("Cancel"), "the app chose English")
+	require.NoError(t, AddTranslationsForLocale([]byte(`{"Later": "Plus tard"}`), "fr"))
+	assert.Equal(t, "Cancel", L("Cancel"), "translations added later: still English")
+
+	SetLanguage("de")
+	assert.Equal(t, "Abbrechen", L("Cancel"), "another language chosen")
+	SetLanguage("xx")
+	assert.Equal(t, "Cancel", L("Cancel"), "a language with no translations: English")
+
+	SetLanguage("")
+	assert.Equal(t, "Annuler", L("Cancel"), "back to the system's")
+}
