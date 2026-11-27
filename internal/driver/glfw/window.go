@@ -531,6 +531,17 @@ func (w *window) processMouseClicked(button desktop.MouseButton, action action, 
 		mev.Position = ev.Position
 		mev.AbsolutePosition = mousePos
 		w.mouseClickedHandleMouseable(mev, action, wid)
+	} else if dragged, ok := w.mouseDragged.(desktop.Mouseable); ok && action == release {
+		// released where nothing takes a click (off the window: a Mac
+		// sends the release there): the object dragged still hears it,
+		// as over another object, or a press stays open in it for good
+		mev := &desktop.MouseEvent{
+			Button:   button,
+			Modifier: modifiers,
+		}
+		mev.AbsolutePosition = mousePos
+		mev.Position = mousePos.Subtract(w.mouseDraggedOffset)
+		dragged.MouseUp(mev)
 	}
 
 	focused := w.canvas.Focused()

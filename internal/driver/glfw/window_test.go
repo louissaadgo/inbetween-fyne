@@ -606,6 +606,32 @@ func TestWindow_DragIntoNewObjectKeepingFocus(t *testing.T) {
 	})
 }
 
+func TestWindow_DragReleasedOffTheWindow(t *testing.T) {
+	w := createWindow("Test")
+	d := &draggableMouseableObject{Rectangle: canvas.NewRectangle(color.White)}
+	d.SetMinSize(fyne.NewSize(20, 20))
+	w.SetContent(container.NewHBox(d))
+
+	repaintWindow(w)
+	runOnMain(func() {
+		// pressed on d, dragged off the window and released there
+		w.moveMouse(11, 11)
+		w.mouseClicked(w.viewport, glfw.MouseButton1, glfw.Press, 0)
+		w.moveMouse(15, 11)
+		w.moveMouse(15, 900)
+		w.mouseClicked(w.viewport, glfw.MouseButton1, glfw.Release, 0)
+
+		assert.Equal(t, fyne.NewPos(7, 7), d.popMouseEvent().(*desktop.MouseEvent).Position, "its press")
+		up, ok := d.popMouseEvent().(*desktop.MouseEvent)
+		if !assert.True(t, ok, "its release reaches d") {
+			return
+		}
+		assert.Equal(t, fyne.NewPos(15, 900), up.AbsolutePosition)
+		assert.Equal(t, fyne.NewPos(11, 896), up.Position)
+		assert.Nil(t, d.popMouseEvent())
+	})
+}
+
 func TestWindow_NoDragEndWithoutDraggedEvent(t *testing.T) {
 	w := createWindow("Test")
 	do := &draggableMouseableObject{Rectangle: canvas.NewRectangle(color.White)}
